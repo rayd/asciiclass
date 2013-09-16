@@ -1,0 +1,159 @@
+Ray Di Ciaccio
+
+Protocol Buffers
+=================
+1. 1554 deletes
+for tweet in tweets.tweets:
+    if tweet.is_delete:
+        deletes += 1
+
+    "deletes 1554"
+
+2. 17 tweets replying to other tweets in this dataset
+# Loaded tweet IDs into a set (tweet_id_set)
+for tweet in tweets.tweets:
+    if tweet.HasField('insert') and tweet.insert.HasField('reply_to') and tweet.insert.reply_to in tweet_id_set:
+        reply_tos += 1
+
+    "reply_tos 17"
+
+3. 1269521828 (5), 392695315 (4), 424808364 (3), 1706901902 (3), 1471774728 (2)
+Looped through tweets and incremented a counter in a dict keyed by uid
+
+    "five_highest_uids [(1269521828L, 5), (392695315L, 4), (424808364L, 3), (1706901902L, 3), (1471774728L, 2)]"
+
+4. Türkiye (4), Gambir (3), East Borneo (3), Nongsa (2), Mississippi (2)
+Looped through tweets and incremented a counter in a dict keyed by a place ID
+
+    "five_highest_places [(u'682c5a667856ef42', (4, u'T\xfcrkiye')), (u'25f5e9dbc1b635ac', (3, u'Gambir')), (u'8f6d8fbc7060e679', (3, u'East Borneo')), (u'034ab67b4e0af012', (2, u'Nongsa')), (u'43d2418301bf1a49', (2, u'Mississippi'))]"
+
+
+sqlite3
+========
+1. 1554 deletes
+select count(*) from tweets where is_delete = 1;
+    1554
+
+2. 17 tweets replying to other tweets in this dataset
+select count(*) from tweets where is_delete = 0 and reply_to in (select id from tweets);
+    17
+
+3. 1269521828 (5), 392695315 (4), 424808364 (3), 1706901902 (3), 23991910 (2)
+select uid, count(uid) as number_of_tweets from tweets where is_delete = 0 group by uid order by number_of_tweets desc limit 5;
+    1269521828|5
+    392695315|4
+    424808364|3
+    1706901902|3
+    23991910|2
+
+4. Türkiye (4), Gambir (3), East Borneo (3), Nongsa (2), Malalayang (2)
+select places.name, count(tid) as number_of_tweets from tweets join places on tweets.id = places.tid where is_delete = 0 group by places.id order by number_of_tweets desc limit 5;
+    Türkiye|4
+    Gambir|3
+    East Borneo|3
+    Nongsa|2
+    Malalayang|2
+
+
+mongodb
+========
+1. 1554 deletes
+db.tweets.count({ delete : { $exists: true  } })
+    1554
+
+2. 17 tweets replying to other tweets in this dataset
+ids = []
+db.tweets.find( { "delete" : { $exists : false } }, { id : true }).forEach(function(item) { ids.push(item.id) })
+db.tweets.count( { "in_reply_to_status_id" : { $in : ids } })
+    17
+
+3. 1269521828 (5), 392695315 (4), 424808364 (3), 1706901902 (3), 364117533 (2)
+db.tweets.aggregate( { $match : { "delete" : { $exists : false } } }, { $group : { _id : "$user.id", tweet_count : { $sum: 1 } } }, { $sort : { tweet_count: -1 } }, { $limit: 5 }, { $project : { uid: "$_id", tweet_count: 1, _id : 0 } } )
+
+    {
+        "result" : [
+            {
+                "tweet_count" : 5,
+                "uid" : 1269521828
+            },
+            {
+                "tweet_count" : 4,
+                "uid" : 392695315
+            },
+            {
+                "tweet_count" : 3,
+                "uid" : 424808364
+            },
+            {
+                "tweet_count" : 3,
+                "uid" : 1706901902
+            },
+            {
+                "tweet_count" : 2,
+                "uid" : 364117533
+            }
+        ],
+        "ok" : 1
+    }
+
+
+4. Türkiye (4), Gambir (3), East Borneo/Kalimantan Timur (3), Nongsa (2), Malalayang (2)
+db.tweets.aggregate( { $match : { "delete" : { $exists : false }, place : { $exists : true, $ne : null } } }, { $group : { _id : "$place.id", place_name: { $push : "$place.name" }, tweet_count : { $sum: 1 } } }, { $sort : { tweet_count: -1 } }, { $limit: 5 }, { $project : { uid: "$_id", place_name: 1, tweet_count: 1, _id : 0 } } )
+
+    {
+        "result" : [
+            {
+                "place_name" : [
+                    "Türkiye",
+                    "Türkiye",
+                    "Türkiye",
+                    "Türkiye"
+                ],
+                "tweet_count" : 4,
+                "uid" : "682c5a667856ef42"
+            },
+            {
+                "place_name" : [
+                    "Gambir",
+                    "Gambir",
+                    "Gambir"
+                ],
+                "tweet_count" : 3,
+                "uid" : "25f5e9dbc1b635ac"
+            },
+            {
+                "place_name" : [
+                    "Kalimantan Timur",
+                    "East Borneo",
+                    "East Borneo"
+                ],
+                "tweet_count" : 3,
+                "uid" : "8f6d8fbc7060e679"
+            },
+            {
+                "place_name" : [
+                    "Malalayang",
+                    "Malalayang"
+                ],
+                "tweet_count" : 2,
+                "uid" : "0f0c6990d5e6479a"
+            },
+            {
+                "place_name" : [
+                    "Nongsa",
+                    "Nongsa"
+                ],
+                "tweet_count" : 2,
+                "uid" : "034ab67b4e0af012"
+            }
+        ],
+        "ok" : 1
+    }
+
+
+5. Reflection
+==============
+
+
+Feedback
+=========
