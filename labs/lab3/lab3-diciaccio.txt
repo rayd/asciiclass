@@ -1,0 +1,16 @@
+# Ray Di Ciaccio
+
+synsets.txt (Wrangler)
+=======================
+118294 unique words
+
+worldcup.txt (Wrangler)
+========================
+BRA,5
+ITA,4
+GER,3
+ARG,2
+URU,2
+ENG,1
+ESP,1
+FRA,1
