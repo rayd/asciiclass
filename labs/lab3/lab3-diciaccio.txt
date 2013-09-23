@@ -1,11 +1,15 @@
-# Ray Di Ciaccio
+### Ray Di Ciaccio
+### Lab 3
 
-synsets.txt (Wrangler)
-=======================
+Results
+=======
+
+synsets.txt
+-----------
 118294 unique words
 
-worldcup.txt (Wrangler)
-========================
+worldcup.txt
+------------
 BRA,5
 ITA,4
 GER,3
@@ -14,3 +18,9 @@ URU,2
 ENG,1
 ESP,1
 FRA,1
+
+Questions
+=========
+2. I actually had a much easier time cleaning this data using awk/grep/sed than Data Wrangler. For the synonyms data set, both methods were easy; for the World Cup dataset, awk/grep/sed was much faster. Using these tools I was sure of the changes each command would make to the data. Using Data Wrangler, it wasn't always clear to me what the next transformation should be and I had to resort to lots of trial-and-error. It also seemed somewhat buggy and I had to restart the whole process a dozen times or so. Using the scripting tools, I felt in complete control; using Data Wrangler I felt like I was at the mercy of its supported functions.
+
+3. At one point, I wanted to be able to rotate the table but was unable to figure out how to do it. At another point, I wanted to be able to move a column to the right, but the Translate command only seemed to support up/down translation. Overall, almost anything I wanted to do was available; the main trouble was apparently buggy operations and simply understanding the proper ordering of all the modifications.
