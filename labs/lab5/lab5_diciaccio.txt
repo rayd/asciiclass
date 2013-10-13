@@ -1,0 +1,34 @@
+Ray Di Ciaccio
+Lab 5
+
+Top 5 tf-idf terms
+===================
+Kenneth Lay
+    associate/analyst  365.6788995526
+    program            146.9242764767
+    enron              118.5281678757
+    kenneth            108.0538302318
+    cindi              86.90964727144
+
+Jeffrey Skilling
+    skilling/corp/enron  388.828912187137
+    jeff                 370.894210130207
+    murdock              209.543011288396
+    skill                194.979614479359
+    macerich             193.676177047138
+
+Andrew Fastow
+    petrobra    149.401282954044
+    asep        117.63273059262
+    vagner      78.3921242475153
+    dik         45.5371065898417
+    fastow      35.7272649492367
+
+Rebecca Mark-Jusbasche
+    I could not find any email sent by Rebecca Mark-Jusbasche
+
+Stephen F. Cooper
+    I could not find any email sent by Stephen F. Cooper
+
+
+
