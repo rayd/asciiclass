@@ -1,10 +1,13 @@
 import json
 lay = sc.textFile('/home/rayd/asciiclass/git/labs/lab6/lay-k.json')
 json_lay = lay.map(lambda x: json.loads(x)).cache()
-distinct_senders = json_lay.map(lambda x: x['sender']).distinct().cache()
-sender_pairs = distinct_senders.flatMap(split).distinct().cache()
-lastname_groups = sender_pairs.groupBy(lambda x: x[0][1]).cache()
-email_equivalents = lastname_groups.filter(lambda x: len(x[1]) > 1).flatMap(compare_names).distinct().cache();
+distinct_senders = json_lay.map(lambda x: x['sender']).distinct()
+sender_pairs = distinct_senders.flatMap(split).distinct()
+lastname_groups = sender_pairs.groupBy(lambda x: x[0][1])
+email_equivalents_dict = lastname_groups.filter(lambda x: len(x[1]) > 1).flatMap(compare_names).distinct().flatMap(transform_tuples).collectAsMap()
+# broadcast email equivalents map to all nodes so they can properly map senders
+broadcast_value = sc.broadcast(email_equivalents_dict)
+term_sender_rdd = json_lay.flatMap(extract_term_sender_pairs).cache()
 
 # split an email address into a (first_name, last_name) pair
 # based on some common email patterns
@@ -81,8 +84,37 @@ def compare_names(name_group):
 		# only add this to the list of equivalence sets if there's something else in it
 		this_equivalence_set = set(this_namepair_equivalents)
 		if(len(this_equivalence_set) > 1):
-			all_equivalents.append(tuple(this_equivalence_set))
+			all_equivalents.append(tuple(sorted(this_equivalence_set)))
 	return all_equivalents
 
 def transform_tuples(t):
+	canonical_email = t[0]
+	return map(lambda x: (x, canonical_email), t[1:len(t)])
 
+def lookup_canonical_sender(email):
+	senders_dict = broadcast_value.value
+	if (email in senders_dict):
+		return senders_dict[email]
+	else:
+		return email
+
+stops = ['i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now']
+punct_regex = re.compile('[%s]' % re.escape(string.punctuation))
+porter = nltk.PorterStemmer()
+
+def filter_punctuation_contractions_stops(x):
+    return ((re.match(punct_regex, x) == None) and (x not in ['\'s', 'n\'t', '\'ve']) and (x not in stops))
+
+# do some preprocess for the text of each email
+def preprocess_email(txt):
+    words = []
+    s_tokens = word_tokenize(txt)
+    # remove punctuation-only and contraction tokens and stop words
+    s_words = filter(filter_punctuation_contractions_stops, map(string.lower, s_tokens))
+    words.extend([ porter.stem(w) for w in s_words ])
+    return words
+
+def extract_term_sender_pairs(sender_txt_pair):
+	sender = lookup_canonical_sender(sender_txt_pairx['sender'])
+	text = sender_txt_pair['text']
+	return map(lambda x: { 'sender': sender, 'term': x }, preprocess_email(text))
