@@ -1,36 +1,17 @@
 from pyspark import SparkContext
 import json
-import nltk
-from nltk.tokenize import word_tokenize
 import string
 import re
 
-sc = SparkContext("<MASTER URI>", "TF-IDF on Enron Corpus")
-# lay = sc.textFile('/home/rayd/asciiclass/git/labs/lab6/lay-k.json')
-lay = sc.textFile('s3n://AKIAJFDTPC4XX2LVETGA:<AWS KEY FROM PIAZZA>@6885public/enron/lay-k.json')
+sc = SparkContext("local", "rayd-tfidf-enron", pyFiles=["nltk.zip"])
+# sc = SparkContext("<MASTER URI>", "rayd-tfidf-enron", pyFiles=["nltk.zip"])
+enron = sc.textFile('/home/rayd/asciiclass/git/labs/lab6/lay-k.json')
+# enron = sc.textFile('s3n://AKIAJFDTPC4XX2LVETGA:<AWS_PRIVATE_KEY>@6885public/enron/*.json')
 
-json_lay = lay.map(lambda x: json.loads(x)).cache()
-distinct_senders = json_lay.map(lambda x: x['sender']).distinct()
-sender_pairs = distinct_senders.flatMap(split).distinct()
-lastname_groups = sender_pairs.groupBy(lambda x: x[0][1])
-email_equivalents_dict = lastname_groups.filter(lambda x: len(x[1]) > 1).flatMap(compare_names).distinct().flatMap(transform_tuples).collectAsMap()
-# broadcast email equivalents map to all nodes so they can properly map senders
-broadcast_equivalents_dict = sc.broadcast(email_equivalents_dict)
-term_sender_rdd = json_lay.flatMap(extract_term_sender_pairs).cache()
-# compute total number of documents (i.e. number of senders since each sender's corpus of email is being considered one document)
-total_documents =  term_sender_rdd.groupBy(lambda x: x['sender']).map(lambda x: x[0]).distinct().count()
-# broadcast total documents number so nodes can calculate per-term idf
-broadcast_total_documents = sc.broadcast(total_documents)
-# count how many senders have used each term
-terms_grouped_rdd = term_sender_rdd.groupBy(lambda x: x['term']).cache()
-term_count_rdd = terms_grouped_rdd.map(lambda x: (x[0], len(set(map(lambda y: y['sender'], x[1])))))
-# compute per-term idf values by dividing total document count by number of documents with term (which is x[1])
-per_term_idf_rdd = term_count_rdd.map(lambda x: (x[0], broadcast_total_documents.value / float(x[1])))
-# count the term-frequency for each sender
-per_term_sender_freq_rdd = terms_grouped_rdd.flatMap(lambda x: map(lambda y: (x[0],y), reduce(reduce_sender_count, x[1], {}).viewitems()))
-# join on the term and compute tfidf
-# here x[0] is the term, x[1] = ((sender, tf), idf)
-per_term_sender_freq_rdd.join(per_term_idf_rdd).map(lambda x: { 'term': x[0], 'sender': x[1][0][0], 'tfidf': x[1][0][1] * x[1][1]}).saveAsTextFile('spark_output')
+import nltk
+from nltk.tokenize import word_tokenize
+
+# Define a bunch of helper functions
 
 # split an email address into a (first_name, last_name) pair
 # based on some common email patterns
@@ -149,3 +130,31 @@ def reduce_sender_count(d, obj):
     else:
         d[sender] = 1
     return d
+
+# Start real spark processing
+
+# ER code
+json_enron = enron.map(lambda x: json.loads(x)).cache()
+distinct_senders = json_enron.map(lambda x: x['sender']).distinct()
+sender_pairs = distinct_senders.flatMap(split).distinct()
+lastname_groups = sender_pairs.groupBy(lambda x: x[0][1])
+email_equivalents_dict = lastname_groups.filter(lambda x: len(x[1]) > 1).flatMap(compare_names).distinct().flatMap(transform_tuples).collectAsMap()
+# broadcast email equivalents map to all nodes so they can properly map senders
+broadcast_equivalents_dict = sc.broadcast(email_equivalents_dict)
+
+# Now start TF-IDF related calculations
+term_sender_rdd = json_enron.flatMap(extract_term_sender_pairs).cache()
+# compute total number of documents (i.e. number of senders since each sender's corpus of email is being considered one document)
+total_documents =  term_sender_rdd.groupBy(lambda x: x['sender']).map(lambda x: x[0]).distinct().count()
+# broadcast total documents number so nodes can calculate per-term idf
+broadcast_total_documents = sc.broadcast(total_documents)
+# count how many senders have used each term
+terms_grouped_rdd = term_sender_rdd.groupBy(lambda x: x['term']).cache()
+term_count_rdd = terms_grouped_rdd.map(lambda x: (x[0], len(set(map(lambda y: y['sender'], x[1])))))
+# compute per-term idf values by dividing total document count by number of documents with term (which is x[1])
+per_term_idf_rdd = term_count_rdd.map(lambda x: (x[0], broadcast_total_documents.value / float(x[1])))
+# count the term-frequency for each sender
+per_term_sender_freq_rdd = terms_grouped_rdd.flatMap(lambda x: map(lambda y: (x[0],y), reduce(reduce_sender_count, x[1], {}).viewitems()))
+# join on the term and compute tfidf
+# here x[0] is the term, x[1] = ((sender, tf), idf)
+per_term_sender_freq_rdd.join(per_term_idf_rdd).map(lambda x: { 'term': x[0], 'sender': x[1][0][0], 'tfidf': x[1][0][1] * x[1][1]}).saveAsTextFile('spark_output')
