@@ -3,7 +3,7 @@ import json
 import string
 import re
 
-sc = SparkContext("local", "rayd-tfidf-enron", pyFiles=["nltk.zip"])
+sc = SparkContext("local[4]", "rayd-tfidf-enron", pyFiles=["nltk.zip"])
 # sc = SparkContext("<MASTER URI>", "rayd-tfidf-enron", pyFiles=["nltk.zip"])
 enron = sc.textFile('/home/rayd/asciiclass/git/labs/lab6/lay-k.json')
 # enron = sc.textFile('s3n://AKIAJFDTPC4XX2LVETGA:<AWS_PRIVATE_KEY>@6885public/enron/*.json')
@@ -75,7 +75,7 @@ def compare_names(name_group):
             if (firstname == potential_firstname):
                 # if same firstname, then equal
                 this_namepair_equivalents.append(potential_email)
-            elif (len(firstname) == 1 or len(potential_firstname) == 1):
+            elif ((len(firstname) > 0 and len(potential_firstname) > 0) and (len(firstname) == 1 or len(potential_firstname) == 1)):
                 # if one of the firstnames is an initial and it matches another firstnames first intial, assume match
                 if (firstname[0] == potential_firstname[0]):
                     this_namepair_equivalents.append(potential_email)
@@ -154,7 +154,7 @@ term_count_rdd = terms_grouped_rdd.map(lambda x: (x[0], len(set(map(lambda y: y[
 # compute per-term idf values by dividing total document count by number of documents with term (which is x[1])
 per_term_idf_rdd = term_count_rdd.map(lambda x: (x[0], broadcast_total_documents.value / float(x[1])))
 # count the term-frequency for each sender
-per_term_sender_freq_rdd = terms_grouped_rdd.flatMap(lambda x: map(lambda y: (x[0],y), reduce(reduce_sender_count, x[1], {}).viewitems()))
+per_term_sender_freq_rdd = terms_grouped_rdd.flatMap(lambda x: map(lambda y: (x[0],y), reduce(reduce_sender_count, x[1], {}).items()))
 # join on the term and compute tfidf
 # here x[0] is the term, x[1] = ((sender, tf), idf)
 per_term_sender_freq_rdd.join(per_term_idf_rdd).map(lambda x: { 'term': x[0], 'sender': x[1][0][0], 'tfidf': x[1][0][1] * x[1][1]}).saveAsTextFile('spark_output')
