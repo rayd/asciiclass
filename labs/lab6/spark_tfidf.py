@@ -148,6 +148,7 @@ total_documents = distinct_senders.map(lambda x: lookup_canonical_sender(x)).dis
 distinct_senders.unpersist()
 # broadcast total documents number so nodes can calculate per-term idf
 broadcast_total_documents = sc.broadcast(total_documents)
+print "TOTAL DOCUMENTS:", broadcast_total_documents.value
 # count how many senders have used each term
 terms_grouped_rdd = json_enron.flatMap(extract_term_sender_pairs).groupBy(lambda x: x['term']).cache()
 json_enron.unpersist()
