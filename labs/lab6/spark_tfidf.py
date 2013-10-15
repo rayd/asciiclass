@@ -148,6 +148,7 @@ term_sender_rdd = json_enron.flatMap(extract_term_sender_pairs).cache()
 total_documents =  term_sender_rdd.groupBy(lambda x: x['sender']).map(lambda x: x[0]).distinct().count()
 # broadcast total documents number so nodes can calculate per-term idf
 broadcast_total_documents = sc.broadcast(total_documents)
+print "TOTAL DOCUMENTS:",broadcast_total_documents.value
 # count how many senders have used each term
 terms_grouped_rdd = term_sender_rdd.groupBy(lambda x: x['term']).cache()
 term_count_rdd = terms_grouped_rdd.map(lambda x: (x[0], len(set(map(lambda y: y['sender'], x[1])))))
