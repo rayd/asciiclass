@@ -135,7 +135,7 @@ def reduce_sender_count(d, obj):
 
 # ER code
 json_enron = enron.map(lambda x: json.loads(x)).cache()
-distinct_senders = json_enron.map(lambda x: x['sender']).distinct()
+distinct_senders = json_enron.map(lambda x: x['sender']).distinct().cache()
 sender_pairs = distinct_senders.flatMap(split).distinct()
 lastname_groups = sender_pairs.groupBy(lambda x: x[0][1])
 email_equivalents_dict = lastname_groups.filter(lambda x: len(x[1]) > 1).flatMap(compare_names).distinct().flatMap(transform_tuples).collectAsMap()
@@ -143,18 +143,19 @@ email_equivalents_dict = lastname_groups.filter(lambda x: len(x[1]) > 1).flatMap
 broadcast_equivalents_dict = sc.broadcast(email_equivalents_dict)
 
 # Now start TF-IDF related calculations
-term_sender_rdd = json_enron.flatMap(extract_term_sender_pairs).cache()
 # compute total number of documents (i.e. number of senders since each sender's corpus of email is being considered one document)
-total_documents =  term_sender_rdd.groupBy(lambda x: x['sender']).map(lambda x: x[0]).distinct().count()
+total_documents = distinct_senders.map(lambda x: lookup_canonical_sender(x)).distinct().count()
+distinct_senders.unpersist()
 # broadcast total documents number so nodes can calculate per-term idf
 broadcast_total_documents = sc.broadcast(total_documents)
 # count how many senders have used each term
-terms_grouped_rdd = term_sender_rdd.groupBy(lambda x: x['term']).cache()
-term_count_rdd = terms_grouped_rdd.map(lambda x: (x[0], len(set(map(lambda y: y['sender'], x[1])))))
+terms_grouped_rdd = json_enron.flatMap(extract_term_sender_pairs).groupBy(lambda x: x['term']).cache()
+json_enron.unpersist()
 # compute per-term idf values by dividing total document count by number of documents with term (which is x[1])
-per_term_idf_rdd = term_count_rdd.map(lambda x: (x[0], broadcast_total_documents.value / float(x[1])))
+per_term_idf_rdd = terms_grouped_rdd.map(lambda x: (x[0], len(set(map(lambda y: y['sender'], x[1]))))).map(lambda x: (x[0], broadcast_total_documents.value / float(x[1]))).cache()
 # count the term-frequency for each sender
-per_term_sender_freq_rdd = terms_grouped_rdd.flatMap(lambda x: map(lambda y: (x[0],y), reduce(reduce_sender_count, x[1], {}).items()))
+per_term_sender_freq_rdd = terms_grouped_rdd.flatMap(lambda x: map(lambda y: (x[0],y), reduce(reduce_sender_count, x[1], {}).items())).cache()
 # join on the term and compute tfidf
 # here x[0] is the term, x[1] = ((sender, tf), idf)
 per_term_sender_freq_rdd.join(per_term_idf_rdd).map(lambda x: { 'term': x[0], 'sender': x[1][0][0], 'tfidf': x[1][0][1] * x[1][1]}).saveAsTextFile('spark_output')
+# per_term_sender_freq_rdd.join(per_term_idf_rdd).map(lambda x: { 'term': x[0], 'sender': x[1][0][0], 'tfidf': x[1][0][1] * x[1][1]}).saveAsTextFile('s3n://AKIAJFDTPC4XX2LVETGA:<AWS_PRIVATE_KEY>@6885public/rayd/spark_output')
