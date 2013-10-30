@@ -26,7 +26,7 @@ public class PageRankVertex extends Vertex<IntWritable, DoubleWritable, NullWrit
         if (getSuperstep() == 0) {
             log.debug("Number of vertices: " + (getTotalNumVertices() + 1));
             setValue(new DoubleWritable(1d/(getTotalNumVertices() + 1)));
-            log.info("Initial PR value: " + getValue().get());
+            log.debug("Initial PR value: " + getValue().get());
         }
         else {
             double value = 0;
@@ -37,7 +37,7 @@ public class PageRankVertex extends Vertex<IntWritable, DoubleWritable, NullWrit
             }
             // set the new value with damping factor
             setValue(new DoubleWritable(((1-DAMPING_FACTOR)/(getTotalNumVertices() + 1)) + (DAMPING_FACTOR * value)));
-            log.info("[node " + getId().get() + "] Set new node value: " + getValue().get());
+            log.debug("[node " + getId().get() + "] Set new node value: " + getValue().get());
         }
 
         // now if we want to continue the computation, send messages to all
