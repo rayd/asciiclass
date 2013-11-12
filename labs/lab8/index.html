@@ -2,15 +2,17 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>D3 Test</title>
+        <title>6.885 Lab 8 | Ray Di Ciaccio</title>
         <script type="text/javascript" src="d3/d3.v3.js"></script>
         <link rel="stylesheet" type="text/css" href="rayd3.css" />
     </head>
     <body>
-        <div>
+        <div class="topbar">
             <span class="title">Boston Taxi Pickups</span>
             <span class="options">
-
+                <input id="density_chk" type="checkbox" checked="true" />
+                <span id="density_label">Show pickup density</span>
+                <a href="#" id="play_anim">Play animation</a>
             </span>
         </div>
         <svg class="loading">
