@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>6.885 Lab 8 | Ray Di Ciaccio</title>
+        <link rel="stylesheet" type="text/css" href="rayd3.css" />
+    </head>
+    <body>
+        <h2>Lab 8 Responses</h2>
+        <ol class="responses">
+              <li>I wanted to show the generally cyclic nature of the patterns in the taxi data but also to note where/when the cycle is disrupted. My first technique was using the Voronoi layout to break all the data into regions of interest (based on the points in the interestpoints.csv file). I used a grid based approach to allow the user to specify intersections of days and hour blocks, which would allow a user to cycles over the course of a day or over the course of a week (or anything in between). The animation loops through each time block, one by one, highlighting it and updating the map view. This really gives a feel for the pulse and rhythm of the data as you can see the time blocks moving through a day along with the map display changing.</li>
+              <li>I used a few interactions to allow the user to better analyze the data with the visualization. First there's the interactive day/time-block grid at the bottom that allows users to filter the data being visualized by any combination of days and time blocks. This gives a lot of flexibility when querying the data and looking for patterns. I also added an option (checkbox at top) that allows the user to look at the data as "pickup density" (i.e. pickups / area of Voronoi cell) or just the total number of pickups. Lastly I added an animation that steps through each time block and updates the display. This give the user a feel for the rhythm of the data and can help highlight divergences from the normal rhythm.</li>
+              <li>I'm using a derived product of the raw data. Although the data is still fairly close to raw. I basically calculated which Voronoi cell (interest sites as seeds) each pickup fit into and added the timestamp into a JSON array for that interest point -- something like { "name": "Location Name", "lat": "42", "lon":"-71", "pickups": [ "2012-06-13 09:30:00", ... ] }. This was passed to d3 in the browser. I then binned these times by their associated time-blocks (using a d3 scale) to make the lookup and visualization as snappy as possible. Looking back on what I did, probably the best thing would have been to compute a data cube for all these aggregates using 1 hour time-blocks. That would have greatly reduced the amount of data to be transferred to the browser at load time.</li>
+        </ol>
+    </body>
+</html>
